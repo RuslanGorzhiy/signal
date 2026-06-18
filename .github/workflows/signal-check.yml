@@ -1,0 +1,52 @@
+name: ETH Signal Check
+
+on:
+  schedule:
+    # Каждые 15 минут. GitHub Actions cron не гарантирует точность до минуты
+    # (может быть задержка несколько минут в часы пиковой нагрузки) —
+    # это ограничение самого GitHub, не скрипта.
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+    # Позволяет запустить вручную из вкладки Actions на GitHub —
+    # удобно для проверки, что всё работает, без ожидания cron.
+
+permissions:
+  contents: write
+  # Нужно, чтобы workflow мог закоммитить обновлённый state.json обратно в репозиторий
+
+concurrency:
+  group: eth-signal-check
+  cancel-in-progress: false
+  # Если предыдущий запуск ещё не закончился (редко, но возможно при
+  # сетевых задержках), не запускаем параллельный — иначе оба могут
+  # одновременно писать state.json и конфликтовать.
+
+jobs:
+  check-signal:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run signal check
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/check_signal.py
+
+      - name: Commit updated state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet state.json 2>/dev/null; then
+            echo "state.json не изменился, коммит не нужен"
+          else
+            git add state.json
+            git commit -m "Update signal state [skip ci]"
+            git push
+          fi
