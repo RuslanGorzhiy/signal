@@ -26,7 +26,7 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 
 API_URL = "https://cryptogamma.io/api/public/snapshot?asset=BTC"
-ASSET = "ETH"
+ASSET = "BTC"
 
 # Насколько близко цена должна быть к support/resistance, чтобы считать
 # это "касанием уровня". 0.002 = 0.2%.
