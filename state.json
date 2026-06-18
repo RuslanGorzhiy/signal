@@ -1,3 +1,6 @@
 {
-  "last_signal": null
+  "last_signal": {
+    "type": "breakout",
+    "level": 50000
+  }
 }
