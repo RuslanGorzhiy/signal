@@ -25,7 +25,7 @@ from pathlib import Path
 # Конфигурация
 # ---------------------------------------------------------------------------
 
-API_URL = "https://cryptogamma.io/api/public/snapshot?asset=ETH"
+API_URL = "https://cryptogamma.io/api/public/snapshot?asset=BTC"
 ASSET = "ETH"
 
 # Насколько близко цена должна быть к support/resistance, чтобы считать
