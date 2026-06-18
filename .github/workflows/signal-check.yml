@@ -14,6 +14,13 @@ permissions:
   contents: write
   # Нужно, чтобы workflow мог закоммитить обновлённый state.json обратно в репозиторий
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  # Явно подтверждаем переход на Node24 (GitHub переводит раннеры на него
+  # по умолчанию с 16 июня 2026). Сам предупреждающий текст в логах всё
+  # равно может появляться из-за известного бага раннера — это безвредно
+  # и не влияет на работу бота, см. https://github.com/actions/runner/issues/4295
+
 concurrency:
   group: eth-signal-check
   cancel-in-progress: false
