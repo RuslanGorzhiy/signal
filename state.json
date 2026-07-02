@@ -1,6 +1,6 @@
 {
   "last_signal": {
-    "type": "resistance",
-    "level": 1650
+    "type": "breakout",
+    "level": 50000
   }
 }
