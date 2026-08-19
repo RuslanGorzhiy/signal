@@ -1,103 +1,37 @@
-# CryptoGamma ETH Signal Bot
+# CryptoGamma ETH MM Signal Bot V5
 
-Telegram-бот, который каждые 15 минут проверяет данные с
-[CryptoGamma](https://cryptogamma.io/dashboard/?asset=ETH) (гамма-экспозиция
-ETH-опционов на Deribit) и присылает сигнал, когда цена ETH подходит к
-уровню **поддержки**, **сопротивления** или **пробивает уровень breakout**.
+Telegram signal engine using CryptoGamma's documented public API.
 
-Работает полностью бесплатно на GitHub Actions — без сервера, без VPS.
+## What V5 adds
 
-## ⚠️ Важно понимать перед использованием
+- Positive/negative/neutral gamma regime from `netGamma`.
+- Dealer bias, support, resistance and breakout scoring.
+- Call/put flow and put/call ratio scoring.
+- Optional skew and Vol Lab enrichment when those endpoints return data.
+- Execution plan: Entry, SL, TP1/TP2/TP3 and R:R.
+- TP3 is explicitly marked as a geometric projection when no real API level exists.
+- Negative gamma is treated as an acceleration regime, not as a fake "liquidation level".
+- No invented Gamma Flip / Put Wall / Call Wall / Max Pain values.
+- 15-minute GitHub Actions schedule.
 
-Squeeze-уровни CryptoGamma — это страйки с большой концентрацией опционного
-open interest (где маркет-мейкеры будут хеджировать позиции), а **не**
-классические уровни технического анализа и не гарантированный прогноз
-движения цены. Бот технически корректно реализует описанную логику, но это
-**не финансовая рекомендация**. Перед использованием сигналов для реальной
-торговли рекомендуется понаблюдать за их точностью какое-то время.
+CryptoGamma documents that positive net GEX tends to dampen volatility while negative net GEX can amplify moves. Its squeeze levels are support, resistance and breakout levels. The machine-readable snapshot endpoint returns these fields directly.
 
-## Как это работает
+## Secrets
 
-1. GitHub Actions по расписанию (cron `*/15 * * * *`) запускает Python-скрипт
-2. Скрипт запрашивает `https://cryptogamma.io/api/public/snapshot?asset=ETH`
-3. Сравнивает текущую цену с `support`, `resistance`, `breakout`
-4. Если цена в пределах 0.2% от support/resistance, либо выше breakout —
-   формируется сигнал
-5. Проверяется `state.json`, чтобы не слать один и тот же сигнал повторно,
-   пока цена держится у того же уровня
-6. Сигнал отправляется в Telegram через Bot API
-7. `state.json` коммитится обратно в репозиторий (это и есть "память" бота
-   между запусками — каждый запуск Actions это чистая виртуалка)
+`CRYPTOGAMMA_API_TOKEN`
+`TELEGRAM_BOT_TOKEN`
+`TELEGRAM_CHAT_ID`
 
-## Настройка (шаг за шагом)
+## Local run
 
-### 1. Создать Telegram-бота
-
-1. В Telegram напишите [@BotFather](https://t.me/BotFather)
-2. Отправьте `/newbot`, придумайте имя
-3. BotFather выдаст токен вида `123456789:AAH...` — это `TELEGRAM_BOT_TOKEN`
-
-### 2. Получить chat_id
-
-Куда слать сигналы — тебе лично или в группу/канал:
-
-- **Себе лично**: напишите своему новому боту любое сообщение, затем откройте
-  `https://api.telegram.org/bot<ТВОЙ_ТОКЕН>/getUpdates` в браузере — в JSON
-  найдите `"chat":{"id": ЧИСЛО, ...}`. Это и будет `TELEGRAM_CHAT_ID`
-  (может быть отрицательным для групп).
-- **В канал**: добавьте бота администратором канала, отправьте туда любое
-  сообщение, затем тот же `getUpdates` запрос покажет chat_id канала
-  (обычно начинается с `-100`).
-
-### 3. Создать репозиторий на GitHub
-
-1. Создайте новый репозиторий (можно приватный — секреты всё равно скрыты)
-2. Загрузите туда все файлы из этого проекта, сохранив структуру:
-   ```
-   .github/workflows/signal-check.yml
-   scripts/check_signal.py
-   state.json
-   ```
-
-### 4. Добавить секреты в репозиторий
-
-В репозитории: **Settings → Secrets and variables → Actions → New repository secret**
-
-Добавьте два секрета:
-- `TELEGRAM_BOT_TOKEN` — токен из шага 1
-- `TELEGRAM_CHAT_ID` — chat_id из шага 2
-
-### 5. Включить Actions и проверить
-
-1. Перейдите во вкладку **Actions** репозитория
-2. Если GitHub предложит включить workflows — подтвердите
-3. Откройте workflow **ETH Signal Check** → **Run workflow** (кнопка справа)
-   для ручного теста, не дожидаясь cron
-4. Проверьте логи запуска — там будет видно, был ли сигнал и что произошло
-
-После этого бот будет автоматически запускаться каждые 15 минут.
-
-## Настройка чувствительности
-
-В файле `scripts/check_signal.py`:
-
-```python
-PROXIMITY_THRESHOLD = 0.002  # 0.2% — насколько близко цена должна быть к уровню
+```bash
+python -m venv .venv
+# activate venv
+pip install -r requirements.txt
+cp .env.example .env
+python -m src.main
 ```
 
-Увеличьте значение (например `0.005` = 0.5%), если сигналы приходят слишком
-редко; уменьшите, если слишком часто/неточно.
+## Important
 
-## Ограничения, о которых стоит знать
-
-- **Точность cron**: GitHub Actions не гарантирует запуск ровно по расписанию
-  при высокой нагрузке на инфраструктуру — возможна задержка в несколько
-  минут. Для финансовых сигналов это обычно некритично, но учитывайте это.
-- **Бесплатные лимиты GitHub Actions**: для приватных репозиториев — 2000
-  минут в месяц на бесплатном плане. Один запуск занимает ~10-20 секунд, и
-  при 15-минутном интервале (≈2880 запусков/месяц) это укладывается в лимит
-  с большим запасом. Для публичных репозиториев лимитов на Actions нет.
-- **API CryptoGamma**: это публичный, но независимый от Deribit сервис
-  (как явно указано на самом сайте). Если сайт временно недоступен или
-  меняет формат ответа, скрипт пропустит цикл с ошибкой в логах, а не упадёт
-  молча — лог будет виден во вкладке Actions.
+This is an analytics/alerting system, not an automatic order executor. "Acceleration zone" is a gamma-regime interpretation; it is not a measured liquidation cluster. The bot does not fabricate options strikes that are absent from the API payload.
